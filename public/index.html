@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AV Controller</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    #device-dialog, #test-section, #controls { display: none; margin-top: 1rem; }
+    label { display: block; margin-top: 1rem; }
+    button { margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>AV Controller</h1>
+
+  <button onclick="loadDeviceList()">Add Equipment</button>
+
+  <div id="device-dialog">
+    <label for="deviceList">Choose a device type:</label>
+    <select id="deviceList"></select>
+    <button onclick="findDevice()">Find</button>
+  </div>
+
+  <div id="test-section">
+    <p id="prep"></p>
+    <button onclick="runTest()">Test</button>
+  </div>
+
+  <div id="controls">
+    <h2>Device Controls</h2>
+    <button onclick="send('power_on')">Power On</button>
+    <button onclick="send('power_off')">Power Off</button>
+  </div>
+
+  <script>
+    let deviceMeta = null;
+    let deviceIp = null;
+  
+    async function loadDeviceList() {
+      const res = await fetch('/device-list');
+      const devices = await res.json();
+      const select = document.getElementById('deviceList');
+      select.innerHTML = '';
+  
+      devices.forEach(d => {
+        const option = document.createElement('option');
+        option.value = d.filename;
+        option.textContent = d.device;
+        option.dataset.testCommand = d.test_command;
+        option.dataset.testPrep = d.test_prep_instructions;
+        option.dataset.testConfirm = d.test_confirmation;
+        select.appendChild(option);
+      });
+  
+      document.getElementById('device-dialog').style.display = 'block';
+    }
+  
+    async function findDevice() {
+      const select = document.getElementById('deviceList');
+      const filename = select.value;
+  
+      deviceMeta = {
+        filename,
+        test_command: select.selectedOptions[0].dataset.testCommand,
+        test_prep: select.selectedOptions[0].dataset.testPrep,
+        test_confirm: select.selectedOptions[0].dataset.testConfirm,
+      };
+  
+      const proceed = confirm(deviceMeta.test_prep);
+      if (!proceed) return;
+  
+      const res = await fetch(`/find-device?config=${filename}`);
+      const data = await res.json();
+  
+      if (data.found) {
+        deviceIp = data.ip;
+        document.getElementById('test-section').style.display = 'block';
+      } else {
+        alert("Could not find the device on the network.");
+      }
+    }
+  
+    async function runTest() {
+      const res = await fetch(`/send/${deviceMeta.test_command}?ip=${deviceIp}&config=${deviceMeta.filename}`, { method: 'POST' });
+      const text = await res.text();
+      const confirmed = confirm(`${deviceMeta.test_confirm}\n\n(We sent the test command.)`);
+      if (confirmed) {
+        document.getElementById('controls').style.display = 'block';
+      }
+    }
+  
+    async function send(command) {
+      const res = await fetch(`/send/${command}?ip=${deviceIp}&config=${deviceMeta.filename}`, { method: 'POST' });
+      const text = await res.text();
+      alert(text);
+    }
+  </script>
+  
+</body>
+</html>

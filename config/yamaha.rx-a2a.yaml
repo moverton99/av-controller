@@ -1,0 +1,53 @@
+device: Yamaha RX-A2A
+port: 80
+
+discovery_check:
+  method: POST
+  path: /YamahaRemoteControl/ctrl
+  body: |
+    <?xml version="1.0" encoding="utf-8"?>
+    <YAMAHA_AV cmd="GET">
+      <System>
+        <Device_Info>GetParam</Device_Info>
+      </System>
+    </YAMAHA_AV>
+  headers:
+    Content-Type: application/xml
+  validate_response_contains: RX-A2A
+
+test_command: power_on
+test_prep_instructions: Make sure your receiver is off.
+test_confirmation: Did the receiver turn on?
+
+commands:
+  power_on:
+    label: Power On
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="PUT">
+        <Main_Zone>
+          <Power_Control>
+            <Power>On</Power>
+          </Power_Control>
+        </Main_Zone>
+      </YAMAHA_AV>
+    headers:
+      Content-Type: application/xml
+
+  power_off:
+    label: Power Off
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="PUT">
+        <Main_Zone>
+          <Power_Control>
+            <Power>Standby</Power>
+          </Power_Control>
+        </Main_Zone>
+      </YAMAHA_AV>
+    headers:
+      Content-Type: application/xml
