@@ -1,99 +1,170 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <title>AV Controller</title>
-  <style>
-    body { font-family: sans-serif; padding: 2rem; }
-    #device-dialog, #test-section, #controls { display: none; margin-top: 1rem; }
-    label { display: block; margin-top: 1rem; }
-    button { margin-top: 0.5rem; }
-  </style>
+    <title>AV Controller</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 2rem;
+        }
+
+        .device {
+            margin: 1rem 0;
+            padding: 1rem;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            margin-right: 0.5rem;
+        }
+    </style>
 </head>
+
 <body>
-  <h1>AV Controller</h1>
+    <h1>AV Controller</h1>
 
-  <button onclick="loadDeviceList()">Add Equipment</button>
+    <button onclick="loadDeviceTypes()">Add Equipment</button>
 
-  <div id="device-dialog">
-    <label for="deviceList">Choose a device type:</label>
-    <select id="deviceList"></select>
-    <button onclick="findDevice()">Find</button>
-  </div>
+    <div id="device-dialog" style="display:none;">
+        <label>Select a device type:</label>
+        <select id="deviceList"></select>
+        <button onclick="startDiscovery()">Find</button>
+    </div>
 
-  <div id="test-section">
-    <p id="prep"></p>
-    <button onclick="runTest()">Test</button>
-  </div>
+    <hr>
 
-  <div id="controls">
-    <h2>Device Controls</h2>
-    <button onclick="send('power_on')">Power On</button>
-    <button onclick="send('power_off')">Power Off</button>
-  </div>
+    <h2>Saved Devices</h2>
+    <div id="deviceListContainer"></div>
 
-  <script>
-    let deviceMeta = null;
-    let deviceIp = null;
-  
-    async function loadDeviceList() {
-      const res = await fetch('/device-list');
-      const devices = await res.json();
-      const select = document.getElementById('deviceList');
-      select.innerHTML = '';
-  
-      devices.forEach(d => {
-        const option = document.createElement('option');
-        option.value = d.filename;
-        option.textContent = d.device;
-        option.dataset.testCommand = d.test_command;
-        option.dataset.testPrep = d.test_prep_instructions;
-        option.dataset.testConfirm = d.test_confirmation;
-        select.appendChild(option);
-      });
-  
-      document.getElementById('device-dialog').style.display = 'block';
-    }
-  
-    async function findDevice() {
-      const select = document.getElementById('deviceList');
-      const filename = select.value;
-  
-      deviceMeta = {
-        filename,
-        test_command: select.selectedOptions[0].dataset.testCommand,
-        test_prep: select.selectedOptions[0].dataset.testPrep,
-        test_confirm: select.selectedOptions[0].dataset.testConfirm,
-      };
-  
-      const proceed = confirm(deviceMeta.test_prep);
-      if (!proceed) return;
-  
-      const res = await fetch(`/find-device?config=${filename}`);
-      const data = await res.json();
-  
-      if (data.found) {
-        deviceIp = data.ip;
-        document.getElementById('test-section').style.display = 'block';
-      } else {
-        alert("Could not find the device on the network.");
-      }
-    }
-  
-    async function runTest() {
-      const res = await fetch(`/send/${deviceMeta.test_command}?ip=${deviceIp}&config=${deviceMeta.filename}`, { method: 'POST' });
-      const text = await res.text();
-      const confirmed = confirm(`${deviceMeta.test_confirm}\n\n(We sent the test command.)`);
-      if (confirmed) {
-        document.getElementById('controls').style.display = 'block';
-      }
-    }
-  
-    async function send(command) {
-      const res = await fetch(`/send/${command}?ip=${deviceIp}&config=${deviceMeta.filename}`, { method: 'POST' });
-      const text = await res.text();
-      alert(text);
-    }
-  </script>
-  
+    <hr>
+    <h3>Log</h3>
+    <div id="log"
+        style="height: 25vh; overflow-y: auto; background: #f5f5f5; border: 1px solid #ccc; padding: 0.5rem; font-family: monospace; font-size: 0.9em;">
+    </div>
+
+    <script>
+        let deviceMeta = null;
+
+        function appendLog(msg, isError = false) {
+            const div = document.getElementById('log');
+            const line = document.createElement('div');
+            const timestamp = new Date().toISOString().slice(11, 19);
+            line.textContent = `[${timestamp}] ${msg}`;
+            if (isError) line.style.color = 'red';
+            div.appendChild(line);
+            div.scrollTop = div.scrollHeight;
+        }
+
+        async function loadDeviceTypes() {
+            appendLog("🔍 Loading device types...");
+            try {
+                const res = await fetch('/device-list');
+                const types = await res.json();
+                const select = document.getElementById('deviceList');
+                select.innerHTML = '';
+                types.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.filename;
+                    opt.textContent = t.device;
+                    opt.dataset.testCommand = t.test_command;
+                    opt.dataset.testPrep = t.test_prep_instructions;
+                    opt.dataset.testConfirm = t.test_confirmation;
+                    select.appendChild(opt);
+                });
+                document.getElementById('device-dialog').style.display = 'block';
+                appendLog(`✓ Loaded ${types.length} device type(s).`);
+            } catch (err) {
+                appendLog(`✗ Failed to load device types: ${err}`, true);
+            }
+        }
+
+        async function startDiscovery() {
+            const select = document.getElementById('deviceList');
+            const filename = select.value;
+            const prep = select.selectedOptions[0].dataset.testPrep;
+
+            if (!confirm(prep)) {
+                appendLog("⚠️ Discovery cancelled by user.");
+                return;
+            }
+
+            appendLog(`🔎 Starting discovery for ${filename}...`);
+            try {
+                const res = await fetch(`/find-device?config=${filename}`);
+                const data = await res.json();
+                if (data.found) {
+                    appendLog(`✓ Device found at ${data.ip}. Saved to registry.`);
+                    alert('Device found and saved.');
+                    location.reload();
+                } else {
+                    appendLog(`✗ Device not found.`);
+                    alert('Device not found.');
+                }
+            } catch (err) {
+                appendLog(`✗ Error during discovery: ${err}`, true);
+                alert('An error occurred during discovery.');
+            }
+        }
+
+        async function loadRegistry() {
+            appendLog("📦 Loading device registry...");
+            try {
+                const res = await fetch('/registry');
+                const registry = await res.json();
+                const container = document.getElementById('deviceListContainer');
+                container.innerHTML = '';
+
+                Object.entries(registry).forEach(([id, device]) => {
+                    const div = document.createElement('div');
+                    div.className = 'device';
+
+                    const title = document.createElement('h3');
+                    title.textContent = `${device.name} (${id})`;
+                    div.appendChild(title);
+
+                    const commands = ['power_on', 'power_off'];
+                    commands.forEach(cmd => {
+                        const btn = document.createElement('button');
+                        btn.textContent = cmd;
+                        btn.onclick = () => sendCommand(id, device.ip, device.config, cmd);
+                        div.appendChild(btn);
+                    });
+
+                    const forget = document.createElement('button');
+                    forget.textContent = 'Forget';
+                    forget.onclick = async () => {
+                        appendLog(`🗑 Forgetting device ${id}...`);
+                        await fetch(`/forget-device?id=${id}`, { method: 'POST' });
+                        appendLog(`✓ Device ${id} removed.`);
+                        location.reload();
+                    };
+                    div.appendChild(forget);
+
+                    container.appendChild(div);
+                });
+
+                appendLog(`✓ Loaded ${Object.keys(registry).length} device(s).`);
+            } catch (err) {
+                appendLog(`✗ Failed to load registry: ${err}`, true);
+            }
+        }
+
+        async function sendCommand(id, ip, config, command) {
+            const url = `/send/${command}?id=${id}&ip=${ip}&config=${config}`;
+            appendLog(`→ Sending '${command}' to ${id}`);
+            try {
+                const res = await fetch(url, { method: 'POST' });
+                const text = await res.text();
+                appendLog(`✓ ${command} succeeded: ${text}`);
+            } catch (err) {
+                appendLog(`✗ ${command} failed: ${err}`, true);
+            }
+        }
+
+        loadRegistry(); // Auto-load on page load
+    </script>
+
 </body>
+
 </html>
