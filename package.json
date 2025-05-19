@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "concurrently \"tsc -w -p tsconfig.server.json\" \"tsc -w -p tsconfig.client.json\"",
-    "build": "tsc -p tsconfig.server.json && tsc -p tsconfig.client.json && cpy \"public/config/**/*\" dist/config",
+    "build": "tsc -p tsconfig.server.json && tsc -p tsconfig.client.json && npx cpy public/config/**/* dist/config",
     "start": "node dist/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
