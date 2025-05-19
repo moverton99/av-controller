@@ -6,7 +6,7 @@
             "request": "launch",
             "name": "Launch AV Controller",
             "program": "${workspaceFolder}/dist/server.js",
-            "preLaunchTask": "tsc: build all",
+            "preLaunchTask": "tsc: build server",
             "outFiles": [
                 "${workspaceFolder}/dist/**/*.js"
             ]
@@ -14,6 +14,7 @@
         {
             "type": "msedge",
             "name": "Open index.html in Edge",
+            "preLaunchTask": "tsc: build client",
             "request": "launch",
             "runtimeArgs": [
                 "--remote-debugging-port=9222"

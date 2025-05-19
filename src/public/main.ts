@@ -10,8 +10,10 @@ function appendLog(msg: string, isError = false): void {
 
 async function loadDeviceTypes(): Promise<void> {
     appendLog("🔍 Loading device types...");
+
     try {
         const res = await fetch('/device-list');
+
         const types = await res.json();
         const select = document.getElementById('deviceList') as HTMLSelectElement;
         select.innerHTML = '';
@@ -75,6 +77,30 @@ async function loadRegistry(): Promise<void> {
             title.textContent = `${device.name} (${id})`;
             div.appendChild(title);
 
+            // Volume display
+            const volumeDisplay = document.createElement('div');
+            volumeDisplay.textContent = 'Volume: ...';
+            div.appendChild(volumeDisplay);
+
+            // Fetch and display current volume
+            fetch(`/send/get_volume?id=${id}&ip=${device.ip}&config=${device.config}`, { method: 'POST' })
+                .then(res => res.text())
+                .then(xml => {
+                    // Parse XML to extract volume value
+                    const match = xml.match(/<Val>(-?\d+)<\/Val>\s*<Exp>(\d+)<\/Exp>/);
+                    if (match) {
+                        const val = parseInt(match[1], 10);
+                        const exp = parseInt(match[2], 10);
+                        const volume = val / Math.pow(10, exp);
+                        volumeDisplay.textContent = `Volume: ${volume} dB`;
+                    } else {
+                        volumeDisplay.textContent = 'Volume: (unavailable)';
+                    }
+                })
+                .catch(() => {
+                    volumeDisplay.textContent = 'Volume: (error)';
+                });
+
             ['power_on', 'power_off'].forEach(cmd => {
                 const btn = document.createElement('button');
                 btn.textContent = cmd;
@@ -116,4 +142,9 @@ async function sendCommand(id: string, ip: string, config: string, command: stri
 // Expose functions globally for HTML
 (window as any).startDiscovery = startDiscovery;
 
-loadRegistry();
+window.onload = () => {
+    loadDeviceTypes();
+    loadRegistry();
+};
+
+

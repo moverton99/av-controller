@@ -2,7 +2,7 @@
     "compilerOptions": {
         "outDir": "dist",
         "sourceMap": true,
-        "rootDir": ".",
+        "rootDir": "src",
         "module": "commonjs",
         "target": "es2019",
         "esModuleInterop": true,
@@ -10,7 +10,6 @@
         "forceConsistentCasingInFileNames": true
     },
     "include": [
-        "server.ts",
-        "registry/**/*.ts"
+        "src/**/*.ts"
     ]
 }

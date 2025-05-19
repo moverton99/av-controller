@@ -6,7 +6,7 @@ import axios from 'axios';
 import bodyParser from 'body-parser';
 import net from 'net';
 import os from 'os';
-import * as registry from '../registry/registry';
+import * as registry from './registry/registry';
 
 const app = express();
 const CONFIG_DIR = path.join(__dirname, 'config');
@@ -30,29 +30,32 @@ app.post('/forget-device', (req: Request, res: Response): void => {
 });
 
 app.post('/send/:command', async (req: Request, res: Response): Promise<void> => {
-    const { ip, config: filename, id } = req.query as { ip?: string; config?: string; id?: string };
-    if (!ip || !filename || !id) {
-        res.status(400).send('Missing IP, config, or device ID');
-        return;
-    }
-
-    console.log(`→ Sending ${req.params.command} to ${ip} from ${id}`);
-
-    const configPath = path.join(CONFIG_DIR, filename);
-    if (!fs.existsSync(configPath)) {
-        res.status(404).send('Config file not found');
-        return;
-    }
-
-    const config = yaml.load(fs.readFileSync(configPath, 'utf8')) as any;
-    const cmd = config.commands[req.params.command];
-    if (!cmd) {
-        res.status(404).send('Command not found in config');
-        return;
-    }
-
     try {
-        await axios({
+        const { ip, config: filename, id } = req.query as { ip?: string; config?: string; id?: string };
+        if (!ip || !filename || !id) {
+            res.status(400).send('Missing IP, config, or device ID');
+            return;
+        }
+
+        const configPath = path.join(CONFIG_DIR, filename);
+        if (!fs.existsSync(configPath)) {
+            res.status(404).send('Config file not found');
+            return;
+        }
+
+        const config = yaml.load(fs.readFileSync(configPath, 'utf8')) as any;
+
+        // Look for the command in both commands and queries
+        let cmd = config.commands?.[req.params.command];
+        if (!cmd && config.queries) {
+            cmd = config.queries[req.params.command];
+        }
+        if (!cmd) {
+            res.status(404).send('Command not found in config');
+            return;
+        }
+
+        const response = await axios({
             method: cmd.method.toLowerCase(),
             url: `http://${ip}:${config.port}${cmd.path}`,
             headers: cmd.headers,
@@ -60,10 +63,14 @@ app.post('/send/:command', async (req: Request, res: Response): Promise<void> =>
             timeout: 1000
         });
 
-        registry.updateLastSeen(id);
-        res.send(`Command ${req.params.command} sent to ${ip}`);
+        // Optionally update last seen for commands
+        if (config.commands?.[req.params.command] && registry.updateLastSeen) {
+            registry.updateLastSeen(id);
+        }
+
+        res.send(response.data);
     } catch (err: any) {
-        console.error(`✗ Error sending ${req.params.command} to ${ip}:`, err.message);
+        console.error(`✗ Error sending ${req.params.command} to ${req.query.ip}:`, err.message);
         res.status(500).send('Failed to send command');
     }
 });

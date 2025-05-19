@@ -63,36 +63,43 @@ app.post('/forget-device', (req, res) => {
     res.send('Device removed');
 });
 app.post('/send/:command', async (req, res) => {
-    const { ip, config: filename, id } = req.query;
-    if (!ip || !filename || !id) {
-        res.status(400).send('Missing IP, config, or device ID');
-        return;
-    }
-    console.log(`→ Sending ${req.params.command} to ${ip} from ${id}`);
-    const configPath = path_1.default.join(CONFIG_DIR, filename);
-    if (!fs_1.default.existsSync(configPath)) {
-        res.status(404).send('Config file not found');
-        return;
-    }
-    const config = js_yaml_1.default.load(fs_1.default.readFileSync(configPath, 'utf8'));
-    const cmd = config.commands[req.params.command];
-    if (!cmd) {
-        res.status(404).send('Command not found in config');
-        return;
-    }
+    var _a, _b;
     try {
-        await (0, axios_1.default)({
+        const { ip, config: filename, id } = req.query;
+        if (!ip || !filename || !id) {
+            res.status(400).send('Missing IP, config, or device ID');
+            return;
+        }
+        const configPath = path_1.default.join(CONFIG_DIR, filename);
+        if (!fs_1.default.existsSync(configPath)) {
+            res.status(404).send('Config file not found');
+            return;
+        }
+        const config = js_yaml_1.default.load(fs_1.default.readFileSync(configPath, 'utf8'));
+        // Look for the command in both commands and queries
+        let cmd = (_a = config.commands) === null || _a === void 0 ? void 0 : _a[req.params.command];
+        if (!cmd && config.queries) {
+            cmd = config.queries[req.params.command];
+        }
+        if (!cmd) {
+            res.status(404).send('Command not found in config');
+            return;
+        }
+        const response = await (0, axios_1.default)({
             method: cmd.method.toLowerCase(),
             url: `http://${ip}:${config.port}${cmd.path}`,
             headers: cmd.headers,
             data: cmd.body,
             timeout: 1000
         });
-        registry.updateLastSeen(id);
-        res.send(`Command ${req.params.command} sent to ${ip}`);
+        // Optionally update last seen for commands
+        if (((_b = config.commands) === null || _b === void 0 ? void 0 : _b[req.params.command]) && registry.updateLastSeen) {
+            registry.updateLastSeen(id);
+        }
+        res.send(response.data);
     }
     catch (err) {
-        console.error(`✗ Error sending ${req.params.command} to ${ip}:`, err.message);
+        console.error(`✗ Error sending ${req.params.command} to ${req.query.ip}:`, err.message);
         res.status(500).send('Failed to send command');
     }
 });

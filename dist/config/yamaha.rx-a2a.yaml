@@ -234,21 +234,3 @@ commands:
           </Surround>
         </Main_Zone>
       </YAMAHA_AV>
-
-queries:
-  get_volume:
-    label: Get Volume
-    category: Volume
-    method: POST
-    path: /YamahaRemoteControl/ctrl
-    headers:
-      Content-Type: application/xml
-    body: |
-      <?xml version="1.0" encoding="utf-8"?>
-      <YAMAHA_AV cmd="GET">
-        <Main_Zone>
-          <Volume>
-            <Lvl>GetParam</Lvl>
-          </Volume>
-        </Main_Zone>
-      </YAMAHA_AV>
