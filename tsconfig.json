@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
         "outDir": "dist",
+        "sourceMap": true,
         "rootDir": ".",
         "module": "commonjs",
         "target": "es2019",

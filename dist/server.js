@@ -213,3 +213,4 @@ app.get('/device-list', (req, res) => {
 app.listen(3000, () => {
     console.log('AV Controller running at http://localhost:3000');
 });
+//# sourceMappingURL=server.js.map

@@ -48,3 +48,4 @@ function updateLastSeen(id) {
         save(data, id);
     }
 }
+//# sourceMappingURL=registry.js.map
