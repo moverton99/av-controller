@@ -1,1 +1,8 @@
-{}
+{
+  "yamaha-rx-a2a": {
+    "name": "Yamaha RX-A2A",
+    "config": "yamaha.rx-a2a.yaml",
+    "ip": "10.0.0.105",
+    "last_seen": "2025-05-19T11:40:32.890Z"
+  }
+}

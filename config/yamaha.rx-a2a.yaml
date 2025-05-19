@@ -6,23 +6,21 @@ discovery_check:
   path: /YamahaRemoteControl/ctrl
   body: |
     <?xml version="1.0" encoding="utf-8"?>
-    <YAMAHA_AV cmd="GET">
-      <System>
-        <Misc>
-          <Model_Name>GetParam</Model_Name>
-        </Misc>
-      </System>
+    <YAMAHA_AV cmd="PUT">
+      <Main_Zone>
+        <Power_Control>
+          <Power>On</Power>
+        </Power_Control>
+      </Main_Zone>
     </YAMAHA_AV>
   headers:
     Content-Type: application/xml
-  validate_response_contains: RX-A2A
-
+  validate_response_contains: RC="0"
 test_command: power_on
 test_prep_instructions: Make sure your receiver is off.
 test_confirmation: Did the receiver turn on?
 
 commands:
-
   power_on:
     label: Power On
     category: Power
@@ -181,7 +179,7 @@ commands:
       </YAMAHA_AV>
 
   surround_straight:
-    label: Surround: Straight
+    label: "Surround: Straight"
     category: Surround Mode
     method: POST
     path: /YamahaRemoteControl/ctrl
@@ -200,7 +198,7 @@ commands:
       </YAMAHA_AV>
 
   surround_movie:
-    label: Surround: Movie
+    label: "Surround: Movie"
     category: Surround Mode
     method: POST
     path: /YamahaRemoteControl/ctrl
@@ -219,7 +217,7 @@ commands:
       </YAMAHA_AV>
 
   surround_stereo:
-    label: Surround: Stereo
+    label: "Surround: Stereo"
     category: Surround Mode
     method: POST
     path: /YamahaRemoteControl/ctrl

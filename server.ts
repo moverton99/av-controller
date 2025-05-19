@@ -1,49 +1,54 @@
-const express = require('express');
-const yaml = require('js-yaml');
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
-const bodyParser = require('body-parser');
-const net = require('net');
-const os = require('os');
-const registry = require('./registry/registry');
+import express, { Request, Response } from 'express';
+import yaml from 'js-yaml';
+import fs from 'fs';
+import path from 'path';
+import axios from 'axios';
+import bodyParser from 'body-parser';
+import net from 'net';
+import os from 'os';
+import * as registry from './registry/registry';
 
-const app = express();  // ✅ THIS LINE WAS MISSING
+const app = express();
 const CONFIG_DIR = path.join(__dirname, 'config');
 
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-
-app.get('/registry', (req, res) => {
+app.get('/registry', (req: Request, res: Response) => {
     const all = registry.getAll();
     res.json(all);
 });
 
-app.post('/forget-device', (req, res) => {
-    const id = req.query.id;
-    if (!id) return res.status(400).send('Missing device ID');
+app.post('/forget-device', (req: Request, res: Response): void => {
+    const id = req.body.id as string;
+    if (!id) {
+        res.status(400).send('Missing device ID');
+        return;
+    }
     registry.remove(id);
     res.send('Device removed');
 });
 
-app.post('/send/:command', async (req, res) => {
-    const { ip, config: filename, id } = req.query;
+app.post('/send/:command', async (req: Request, res: Response): Promise<void> => {
+    const { ip, config: filename, id } = req.query as { ip?: string; config?: string; id?: string };
     if (!ip || !filename || !id) {
-        return res.status(400).send('Missing IP, config, or device ID');
+        res.status(400).send('Missing IP, config, or device ID');
+        return;
     }
 
     console.log(`→ Sending ${req.params.command} to ${ip} from ${id}`);
 
     const configPath = path.join(CONFIG_DIR, filename);
     if (!fs.existsSync(configPath)) {
-        return res.status(404).send('Config file not found');
+        res.status(404).send('Config file not found');
+        return;
     }
 
-    const config = yaml.load(fs.readFileSync(configPath, 'utf8'));
+    const config = yaml.load(fs.readFileSync(configPath, 'utf8')) as any;
     const cmd = config.commands[req.params.command];
     if (!cmd) {
-        return res.status(404).send('Command not found in config');
+        res.status(404).send('Command not found in config');
+        return;
     }
 
     try {
@@ -57,15 +62,16 @@ app.post('/send/:command', async (req, res) => {
 
         registry.updateLastSeen(id);
         res.send(`Command ${req.params.command} sent to ${ip}`);
-    } catch (err) {
+    } catch (err: any) {
         console.error(`✗ Error sending ${req.params.command} to ${ip}:`, err.message);
         res.status(500).send('Failed to send command');
     }
 });
 
-
-function getLocalSubnet() {
-    for (let iface of Object.values(os.networkInterfaces())) {
+function getLocalSubnet(): string {
+    const interfaces = os.networkInterfaces();
+    for (let iface of Object.values(interfaces)) {
+        if (!iface) continue;
         for (let entry of iface) {
             if (entry.family === 'IPv4' && !entry.internal) {
                 const ipParts = entry.address.split('.');
@@ -77,7 +83,7 @@ function getLocalSubnet() {
     return '192.168.1.0'; // fallback
 }
 
-function scanPort80(ip) {
+function scanPort80(ip: string): Promise<boolean> {
     return new Promise((resolve) => {
         const socket = new net.Socket();
         socket.setTimeout(300);
@@ -96,24 +102,28 @@ function scanPort80(ip) {
     });
 }
 
-
-app.get('/find-device', async (req, res) => {
+app.get('/find-device', async (req: Request, res: Response): Promise<void> => {
     console.log('🔍 Begin device discovery');
 
-    const filename = req.query.config;
-    if (!filename) return res.status(400).json({ error: 'Missing config file' });
+    const filename = req.query.config as string;
+    if (!filename) {
+        res.status(400).json({ error: 'Missing config file' });
+        return;
+    }
 
     const configPath = path.join(CONFIG_DIR, filename);
     if (!fs.existsSync(configPath)) {
         console.log(`⚠️ Config file not found: ${filename}`);
-        return res.status(404).json({ error: 'Config file not found' });
+        res.status(404).json({ error: 'Config file not found' });
+        return;
     }
 
-    const config = yaml.load(fs.readFileSync(configPath, 'utf8'));
+    const config = yaml.load(fs.readFileSync(configPath, 'utf8')) as any;
     const discovery = config.discovery_check;
     if (!discovery) {
         console.log(`❌ Missing discovery_check in ${filename}`);
-        return res.status(500).json({ error: 'Missing discovery_check in config' });
+        res.status(500).json({ error: 'Missing discovery_check in config' });
+        return;
     }
 
     const base = getLocalSubnet().split('.').slice(0, 3).join('.');
@@ -153,25 +163,26 @@ app.get('/find-device', async (req, res) => {
                     ip,
                     last_seen: new Date().toISOString()
                 });
-                return res.json({ found: true, ip });
+                res.json({ found: true, ip });
+                return;
             } else {
                 console.log(`🟡 Validation failed at ${ip}: string '${discovery.validate_response_contains}' not found`);
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error(`❌ Error talking to ${ip}: ${e.message}`);
         }
     }
 
     console.log('🔚 Discovery complete — no match found');
     res.json({ found: false });
+    return;
 });
 
-
-app.get('/device-list', (req, res) => {
+app.get('/device-list', (req: Request, res: Response) => {
     console.log('Get device list');
     const files = fs.readdirSync(CONFIG_DIR).filter(f => f.endsWith('.yaml'));
     const devices = files.map(file => {
-        const config = yaml.load(fs.readFileSync(path.join(CONFIG_DIR, file), 'utf8'));
+        const config = yaml.load(fs.readFileSync(path.join(CONFIG_DIR, file), 'utf8')) as any;
         return {
             device: config.device || file,
             filename: file,
