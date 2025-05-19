@@ -6,7 +6,10 @@
             "request": "launch",
             "name": "Launch AV Controller",
             "program": "${workspaceFolder}/dist/server.js",
-            "preLaunchTask": "tsc: build - tsconfig.json"
+            "preLaunchTask": "tsc: build all",
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ]
         },
         {
             "type": "msedge",
@@ -15,7 +18,7 @@
             "runtimeArgs": [
                 "--remote-debugging-port=9222"
             ],
-            "url": "http://localhost:3000/index.html", // <-- Update this to match your server's port
+            "url": "http://localhost:3000/index.html",
             "webRoot": "${workspaceFolder}/public"
         }
     ],

@@ -2,18 +2,37 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "tsc: build - tsconfig.json",
+            "label": "tsc: build server",
             "type": "shell",
             "command": "tsc",
             "args": [
                 "-p",
-                "tsconfig.json"
+                "tsconfig.server.json"
             ],
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
             "problemMatcher": "$tsc"
+        },
+        {
+            "label": "tsc: build client",
+            "type": "shell",
+            "command": "tsc",
+            "args": [
+                "-p",
+                "tsconfig.client.json"
+            ],
+            "group": "build",
+            "problemMatcher": "$tsc"
+        },
+        {
+            "label": "tsc: build all",
+            "dependsOn": [
+                "tsc: build server",
+                "tsc: build client"
+            ],
+            "dependsOrder": "sequence"
         }
     ]
 }

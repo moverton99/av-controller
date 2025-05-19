@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc",
-    "start": "node dist/server.js"
+    "dev": "concurrently \"tsc -w -p tsconfig.server.json\" \"tsc -w -p tsconfig.client.json\"",
+    "build": "tsc -p tsconfig.server.json && tsc -p tsconfig.client.json",
+    "start": "node dist/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +22,8 @@
     "@types/body-parser": "^1.19.5",
     "@types/express": "^5.0.2",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^22.15.19"
+    "@types/node": "^18.19.101",
+    "concurrently": "^9.1.2",
+    "undici-types": "^7.9.0"
   }
 }

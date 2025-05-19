@@ -6,7 +6,7 @@ import axios from 'axios';
 import bodyParser from 'body-parser';
 import net from 'net';
 import os from 'os';
-import * as registry from './registry/registry';
+import * as registry from '../registry/registry';
 
 const app = express();
 const CONFIG_DIR = path.join(__dirname, 'config');
