@@ -1,0 +1,270 @@
+device: Yamaha YNCA PRotocol
+port: 80
+
+discovery_check:
+  method: POST
+  path: /YamahaRemoteControl/ctrl
+  body: |
+    <?xml version="1.0" encoding="utf-8"?>
+    <YAMAHA_AV cmd="PUT">
+      <Main_Zone>
+        <Power_Control>
+          <Power>On</Power>
+        </Power_Control>
+      </Main_Zone>
+    </YAMAHA_AV>
+  headers:
+    Content-Type: application/xml
+  validate_response_contains: RC="0"
+test_command: power_on
+test_prep_instructions: Make sure your receiver is off.
+test_confirmation: Did the receiver turn on?
+
+commands:
+  power_on:
+    label: Power On
+    category: Power
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    headers:
+      Content-Type: application/xml
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="PUT">
+        <Main_Zone>
+          <Power_Control>
+            <Power>On</Power>
+          </Power_Control>
+        </Main_Zone>
+      </YAMAHA_AV>
+
+  power_off:
+    label: Power Off
+    category: Power
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    headers:
+      Content-Type: application/xml
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="PUT">
+        <Main_Zone>
+          <Power_Control>
+            <Power>Standby</Power>
+          </Power_Control>
+        </Main_Zone>
+      </YAMAHA_AV>
+
+  volume_up:
+    label: Volume Up
+    category: Volume
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    headers:
+      Content-Type: application/xml
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="PUT">
+        <Main_Zone>
+          <Volume>
+            <Lvl>
+              <Val>Up 1 dB</Val>
+            </Lvl>
+          </Volume>
+        </Main_Zone>
+      </YAMAHA_AV>
+
+  volume_down:
+    label: Volume Down
+    category: Volume
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    headers:
+      Content-Type: application/xml
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="PUT">
+        <Main_Zone>
+          <Volume>
+            <Lvl>
+              <Val>Down 1 dB</Val>
+            </Lvl>
+          </Volume>
+        </Main_Zone>
+      </YAMAHA_AV>
+
+  mute_on:
+    label: Mute On
+    category: Volume
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    headers:
+      Content-Type: application/xml
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="PUT">
+        <Main_Zone>
+          <Volume>
+            <Mute>On</Mute>
+          </Volume>
+        </Main_Zone>
+      </YAMAHA_AV>
+
+  mute_off:
+    label: Mute Off
+    category: Volume
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    headers:
+      Content-Type: application/xml
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="PUT">
+        <Main_Zone>
+          <Volume>
+            <Mute>Off</Mute>
+          </Volume>
+        </Main_Zone>
+      </YAMAHA_AV>
+
+  input_hdmi1:
+    label: Input HDMI1
+    category: Input
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    headers:
+      Content-Type: application/xml
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="PUT">
+        <Main_Zone>
+          <Input>
+            <Input_Sel>HDMI1</Input_Sel>
+          </Input>
+        </Main_Zone>
+      </YAMAHA_AV>
+
+  input_bluetooth:
+    label: Input Bluetooth
+    category: Input
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    headers:
+      Content-Type: application/xml
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="PUT">
+        <Main_Zone>
+          <Input>
+            <Input_Sel>Bluetooth</Input_Sel>
+          </Input>
+        </Main_Zone>
+      </YAMAHA_AV>
+
+  input_net_radio:
+    label: Input Net Radio
+    category: Input
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    headers:
+      Content-Type: application/xml
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="PUT">
+        <Main_Zone>
+          <Input>
+            <Input_Sel>NET RADIO</Input_Sel>
+          </Input>
+        </Main_Zone>
+      </YAMAHA_AV>
+
+  surround_straight:
+    label: "Surround: Straight"
+    category: Surround Mode
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    headers:
+      Content-Type: application/xml
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="PUT">
+        <Main_Zone>
+          <Surround>
+            <Program_Sel>
+              <Current>Straight</Current>
+            </Program_Sel>
+          </Surround>
+        </Main_Zone>
+      </YAMAHA_AV>
+
+  surround_movie:
+    label: "Surround: Movie"
+    category: Surround Mode
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    headers:
+      Content-Type: application/xml
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="PUT">
+        <Main_Zone>
+          <Surround>
+            <Program_Sel>
+              <Current>Movie</Current>
+            </Program_Sel>
+          </Surround>
+        </Main_Zone>
+      </YAMAHA_AV>
+
+  surround_stereo:
+    label: "Surround: Stereo"
+    category: Surround Mode
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    headers:
+      Content-Type: application/xml
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="PUT">
+        <Main_Zone>
+          <Surround>
+            <Program_Sel>
+              <Current>Stereo</Current>
+            </Program_Sel>
+          </Surround>
+        </Main_Zone>
+      </YAMAHA_AV>
+
+queries:
+  get_volume:
+    label: Get Volume
+    category: Volume
+    method: POST
+    path: /YamahaRemoteControl/ctrl
+    headers:
+      Content-Type: application/xml
+    body: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <YAMAHA_AV cmd="GET">
+        <Main_Zone>
+          <Volume>
+            <Lvl>GetParam</Lvl>
+          </Volume>
+        </Main_Zone>
+      </YAMAHA_AV>
+get_power_state:
+  label: Get Power State
+  category: Power
+  method: POST
+  path: /YamahaRemoteControl/ctrl
+  headers:
+    Content-Type: application/xml
+  body: |
+    <?xml version="1.0" encoding="utf-8"?>
+    <YAMAHA_AV cmd="GET">
+      <Main_Zone>
+        <Power_Control>
+          <Power>GetParam</Power>
+        </Power_Control>
+      </Main_Zone>
+    </YAMAHA_AV>

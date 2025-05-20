@@ -46,155 +46,75 @@ const net_1 = __importDefault(require("net"));
 const os_1 = __importDefault(require("os"));
 const registry = __importStar(require("./registry/registry"));
 const app = (0, express_1.default)();
-const CONFIG_DIR = path_1.default.join(__dirname, 'config'); // Path to the config directory
-// Middleware to parse JSON request bodies
+const CONFIG_DIR = path_1.default.join(__dirname, 'config');
+// --- MIDDLEWARE ---
 app.use(body_parser_1.default.json());
-// Serve static files from the 'public' directory
 app.use(express_1.default.static('public'));
-// --- ROUTES ---
-// Return the current device registry as JSON
-app.get('/registry', (req, res) => {
-    const all = registry.getAll();
-    res.json(all);
-});
-// Remove a device from the registry by ID
-app.post('/forget-device', (req, res) => {
-    const id = req.body.id;
-    if (!id) {
-        res.status(400).send('Missing device ID');
-        return;
-    }
-    registry.remove(id);
-    res.send('Device removed');
-});
-// Send a command to a device using its config file and IP address
-app.post('/send/:command', async (req, res) => {
-    var _a, _b;
-    try {
-        // Extract query parameters from the request
-        const { ip, config: filename, id } = req.query;
-        if (!ip || !filename || !id) {
-            res.status(400).send('Missing IP, config, or device ID');
-            return;
-        }
-        // Build the full path to the config file
-        const configPath = path_1.default.join(CONFIG_DIR, filename);
-        if (!fs_1.default.existsSync(configPath)) {
-            res.status(404).send('Config file not found');
-            return;
-        }
-        // Load the YAML config for the device
-        const config = js_yaml_1.default.load(fs_1.default.readFileSync(configPath, 'utf8'));
-        // Look for the command in both commands and queries sections of the config
-        let cmd = (_a = config.commands) === null || _a === void 0 ? void 0 : _a[req.params.command];
-        if (!cmd && config.queries) {
-            cmd = config.queries[req.params.command];
-        }
-        if (!cmd) {
-            res.status(404).send('Command not found in config');
-            return;
-        }
-        // Send the command to the device using axios
-        const response = await (0, axios_1.default)({
-            method: cmd.method.toLowerCase(),
-            url: `http://${ip}:${config.port}${cmd.path}`,
-            headers: cmd.headers,
-            data: cmd.body,
-            timeout: 1000
-        });
-        // Optionally update the device's last seen timestamp in the registry
-        if (((_b = config.commands) === null || _b === void 0 ? void 0 : _b[req.params.command]) && registry.updateLastSeen) {
-            registry.updateLastSeen(id);
-        }
-        res.send(response.data);
-    }
-    catch (err) {
-        console.error(`✗ Error sending ${req.params.command} to ${req.query.ip}:`, err.message);
-        res.status(500).send('Failed to send command');
-    }
-});
 // --- UTILITY FUNCTIONS ---
-/**
- * Get the local subnet (e.g., "192.168.1.0") for device discovery.
- * os.networkInterfaces() returns an object describing each network interface on the system.
- */
+/** Load YAML config by filename from CONFIG_DIR */
+function loadConfig(filename) {
+    const configPath = path_1.default.join(CONFIG_DIR, filename); // Build full path to config file
+    if (!fs_1.default.existsSync(configPath))
+        return null; // Return null if file doesn't exist
+    return js_yaml_1.default.load(fs_1.default.readFileSync(configPath, 'utf8')); // Load and parse YAML
+}
+/** Find command or query in config */
+function findCommand(config, command) {
+    var _a, _b;
+    // Look for command in commands or queries section
+    return ((_a = config.commands) === null || _a === void 0 ? void 0 : _a[command]) || ((_b = config.queries) === null || _b === void 0 ? void 0 : _b[command]) || null;
+}
+/** Get the local subnet (e.g., "192.168.1.0") */
 function getLocalSubnet() {
-    const interfaces = os_1.default.networkInterfaces(); // Get all network interfaces on the machine
+    const interfaces = os_1.default.networkInterfaces(); // Get all network interfaces
     for (let iface of Object.values(interfaces)) {
         if (!iface)
             continue;
         for (let entry of iface) {
-            // entry.family === 'IPv4' checks for IPv4 addresses
-            // entry.internal === false ensures it's not a loopback/internal address
+            // Only consider IPv4, non-internal addresses
             if (entry.family === 'IPv4' && !entry.internal) {
-                const ipParts = entry.address.split('.');
-                ipParts[3] = '0';
-                return ipParts.join('.');
+                const ipParts = entry.address.split('.'); // Split IP into octets
+                ipParts[3] = '0'; // Set last octet to 0 for subnet
+                return ipParts.join('.'); // Return subnet base
             }
         }
     }
-    return '192.168.1.0'; // fallback subnet if none found
+    return '192.168.1.0'; // Fallback subnet
 }
-/**
- * Check if port 80 is open on a given IP address.
- * Uses the 'net' module to attempt a TCP connection.
- */
+/** Check if port 80 is open on a given IP address */
 function scanPort80(ip) {
     return new Promise((resolve) => {
         const socket = new net_1.default.Socket();
-        socket.setTimeout(300); // Set a timeout for the connection attempt
+        socket.setTimeout(300); // Set connection timeout
         socket.once('connect', () => {
             socket.destroy();
-            resolve(true);
+            resolve(true); // Port is open
         });
         socket.once('timeout', () => {
             socket.destroy();
-            resolve(false);
+            resolve(false); // Timed out, port likely closed
         });
         socket.once('error', () => {
-            resolve(false);
+            resolve(false); // Error, port likely closed
         });
-        socket.connect(80, ip); // Attempt to connect to port 80 on the given IP
+        socket.connect(80, ip); // Attempt to connect to port 80
     });
 }
-// --- DEVICE DISCOVERY ---
-/**
- * Scan the local subnet for devices matching the config's discovery_check.
- * For each IP, checks if port 80 is open, then sends a discovery request.
- */
-app.get('/find-device', async (req, res) => {
-    console.log('🔍 Begin device discovery');
-    const filename = req.query.config;
-    if (!filename) {
-        res.status(400).json({ error: 'Missing config file' });
-        return;
-    }
-    const configPath = path_1.default.join(CONFIG_DIR, filename);
-    if (!fs_1.default.existsSync(configPath)) {
-        console.log(`⚠️ Config file not found: ${filename}`);
-        res.status(404).json({ error: 'Config file not found' });
-        return;
-    }
-    // Load the YAML config for the device
-    const config = js_yaml_1.default.load(fs_1.default.readFileSync(configPath, 'utf8'));
+/** Device discovery logic */
+async function discoverDevice(filename) {
+    const config = loadConfig(filename); // Load device config
+    if (!config)
+        return { found: false };
     const discovery = config.discovery_check;
-    if (!discovery) {
-        console.log(`❌ Missing discovery_check in ${filename}`);
-        res.status(500).json({ error: 'Missing discovery_check in config' });
-        return;
-    }
-    // Get the base subnet (e.g., "192.168.1")
-    const base = getLocalSubnet().split('.').slice(0, 3).join('.');
-    // Generate a list of all possible IPs in the subnet (1-254)
-    const scanRange = Array.from({ length: 254 }, (_, i) => `${base}.${i + 1}`);
+    if (!discovery)
+        return { found: false };
+    const base = getLocalSubnet().split('.').slice(0, 3).join('.'); // Get subnet base (e.g. 192.168.1)
+    const scanRange = Array.from({ length: 254 }, (_, i) => `${base}.${i + 1}`); // Generate IPs 1-254
     for (let ip of scanRange) {
-        console.log(`📡 Scanning ${ip}...`);
-        const open = await scanPort80(ip);
+        const open = await scanPort80(ip); // Check if port 80 is open
         if (!open)
             continue;
-        console.log(`✅ Port 80 open at ${ip}`);
-        const url = `http://${ip}:${config.port}${discovery.path}`;
-        console.log(`→ Sending discovery request to: ${url}`);
+        const url = `http://${ip}:${config.port}${discovery.path}`; // Build discovery URL
         try {
             const response = await (0, axios_1.default)({
                 method: discovery.method.toLowerCase(),
@@ -203,52 +123,106 @@ app.get('/find-device', async (req, res) => {
                 data: discovery.body,
                 timeout: 1500
             });
-            if (response === null || response === void 0 ? void 0 : response.data) {
-                console.log(`← Received response from ${ip}:\n${response.data.slice(0, 200)}...`);
-            }
-            // Check if the response contains the expected validation string
+            // Check if response contains expected validation string
             if (response.data &&
                 response.data.includes(discovery.validate_response_contains)) {
-                // Generate a device ID from the config's device name
-                const deviceId = config.device.toLowerCase().replace(/\s+/g, '-');
-                console.log(`🎯 Match found at ${ip}, saving to registry as ${deviceId}`);
+                const deviceId = config.device.toLowerCase().replace(/\s+/g, '-'); // Generate device ID
                 registry.add(deviceId, {
                     name: config.device,
                     config: filename,
                     ip,
                     last_seen: new Date().toISOString()
                 });
-                res.json({ found: true, ip });
-                return;
-            }
-            else {
-                console.log(`🟡 Validation failed at ${ip}: string '${discovery.validate_response_contains}' not found`);
+                return { found: true, ip }; // Device found
             }
         }
-        catch (e) {
-            console.error(`❌ Error talking to ${ip}: ${e.message}`);
+        catch {
+            // ignore errors, continue scanning
         }
     }
-    console.log('🔚 Discovery complete — no match found');
-    res.json({ found: false });
-    return;
+    return { found: false }; // No device found
+}
+// --- ROUTES ---
+// Return the current device registry as JSON
+app.get('/registry', (req, res) => {
+    res.json(registry.getAll());
 });
-// --- DEVICE LIST ---
-/**
- * Return a list of all device configs, including their IP address if known.
- */
+// Remove a device from the registry by ID
+app.post('/forget-device', (req, res) => {
+    const id = req.body.id;
+    if (!id) {
+        res.status(400).send('Missing device ID');
+        return;
+    }
+    registry.remove(id); // Remove device from registry
+    res.send('Device removed');
+});
+// Send a command to a device using its config file and IP address
+app.post('/send/:command', async (req, res) => {
+    var _a;
+    try {
+        const { ip, config: filename, id } = req.query;
+        if (!ip || !filename || !id) {
+            res.status(400).send('Missing IP, config, or device ID');
+            return;
+        }
+        const config = loadConfig(filename); // Load device config
+        if (!config) {
+            res.status(404).send('Config file not found');
+            return;
+        }
+        const cmd = findCommand(config, req.params.command); // Find command in config
+        if (!cmd) {
+            res.status(404).send('Command not found in config');
+            return;
+        }
+        const response = await (0, axios_1.default)({
+            method: cmd.method.toLowerCase(),
+            url: `http://${ip}:${config.port}${cmd.path}`,
+            headers: cmd.headers,
+            data: cmd.body,
+            timeout: 1000
+        });
+        // Optionally update last seen timestamp
+        if (((_a = config.commands) === null || _a === void 0 ? void 0 : _a[req.params.command]) && registry.updateLastSeen) {
+            registry.updateLastSeen(id);
+        }
+        res.send(response.data); // Send response back to client
+    }
+    catch (err) {
+        console.error(`✗ Error sending ${req.params.command} to ${req.query.ip}:`, err.message);
+        res.status(500).send('Failed to send command');
+    }
+});
+// Scan the local subnet for devices matching the config's discovery_check
+app.get('/find-device', async (req, res) => {
+    const filename = req.query.config;
+    if (!filename) {
+        res.status(400).json({ error: 'Missing config file' });
+        return;
+    }
+    const config = loadConfig(filename); // Load config for discovery
+    if (!config) {
+        res.status(404).json({ error: 'Config file not found' });
+        return;
+    }
+    if (!config.discovery_check) {
+        res.status(500).json({ error: 'Missing discovery_check in config' });
+        return;
+    }
+    const result = await discoverDevice(filename); // Run discovery
+    res.json(result);
+});
+// Return a list of all device configs, including their IP address if known
 app.get('/device-list', (req, res) => {
-    console.log('Get device list');
-    const files = fs_1.default.readdirSync(CONFIG_DIR).filter(f => f.endsWith('.yaml'));
+    const files = fs_1.default.readdirSync(CONFIG_DIR).filter(f => f.endsWith('.yaml')); // List YAML config files
     const devices = files.map(file => {
-        // Load the YAML config for each device
-        const config = js_yaml_1.default.load(fs_1.default.readFileSync(path_1.default.join(CONFIG_DIR, file), 'utf8'));
-        // Try to get the device from the registry by config filename or device name
+        const config = loadConfig(file); // Load config for each file
         const regDevice = Object.values(registry.getAll()).find((d) => d.config === file || d.name === config.device);
         return {
             device: config.device || file,
             filename: file,
-            ip: (regDevice === null || regDevice === void 0 ? void 0 : regDevice.ip) || '', // Add IP address if found in registry
+            ip: (regDevice === null || regDevice === void 0 ? void 0 : regDevice.ip) || '',
             test_command: config.test_command || '',
             test_prep_instructions: config.test_prep_instructions || '',
             test_confirmation: config.test_confirmation || ''
@@ -257,7 +231,6 @@ app.get('/device-list', (req, res) => {
     res.json(devices);
 });
 // --- START SERVER ---
-// Start the Express server on port 3000
 app.listen(3000, () => {
     console.log('AV Controller running at http://localhost:3000');
 });

@@ -33,6 +33,7 @@
     "@types/react-dom": "^19.1.5",
     "concurrently": "^9.1.2",
     "cpy-cli": "^5.0.0",
+    "typescript": "^5.8.3",
     "undici-types": "^7.9.0"
   }
 }
