@@ -190,9 +190,14 @@ app.get('/device-list', (req: Request, res: Response) => {
     const files = fs.readdirSync(CONFIG_DIR).filter(f => f.endsWith('.yaml'));
     const devices = files.map(file => {
         const config = yaml.load(fs.readFileSync(path.join(CONFIG_DIR, file), 'utf8')) as any;
+        // Try to get the device from the registry by config filename or device name
+        const regDevice = Object.values(registry.getAll()).find(
+            (d: any) => d.config === file || d.name === config.device
+        );
         return {
             device: config.device || file,
             filename: file,
+            ip: regDevice?.ip || '', // Add IP address if found in registry
             test_command: config.test_command || '',
             test_prep_instructions: config.test_prep_instructions || '',
             test_confirmation: config.test_confirmation || ''
