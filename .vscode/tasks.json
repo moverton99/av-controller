@@ -33,6 +33,14 @@
                 "tsc: build client"
             ],
             "dependsOrder": "sequence"
+        },
+        // .vscode/tasks.json
+        {
+            "label": "Start React Dev Server",
+            "type": "shell",
+            "command": "npm start",
+            "problemMatcher": [],
+            "isBackground": true
         }
     ]
 }
